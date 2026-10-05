@@ -1118,26 +1118,7 @@ html[data-theme="light"] footer p,html[data-theme="light"] footer a{color:#69718
 #admin-page .admin-slide-actions button.danger{color:#e58d91}
 @media(max-width:640px){#admin-page .admin-slide-row{grid-template-columns:62px minmax(0,1fr)}#admin-page .admin-slide-thumb{width:62px;height:42px}#admin-page .admin-slide-actions{grid-column:2;justify-content:flex-start}}
 
-/* ─── CONTENT ROUTES + HERO READABILITY ─── */
-.slide-bg{background:#0b0f18}
-.slide-bg::after{background:linear-gradient(90deg,rgba(6,8,14,.96) 0%,rgba(6,8,14,.82) 30%,rgba(6,8,14,.34) 66%,rgba(6,8,14,.55) 100%),linear-gradient(0deg,rgba(6,8,14,.5),transparent 45%)}
-.slide-content{max-width:720px;text-shadow:0 3px 18px rgba(0,0,0,.7)}
-.slide-content h2{color:#fff;font-weight:900;text-shadow:0 4px 28px rgba(0,0,0,.9)}
-.slide-content p{color:#f1f3f7;font-size:.9rem;text-shadow:0 2px 12px rgba(0,0,0,.9)}
-.slide-meta-row span{color:#f1f3f7;text-shadow:0 2px 10px rgba(0,0,0,.8)}
-.slide-tag{background:rgba(244,171,53,.2);border:1px solid rgba(244,171,53,.55);color:#ffd477}
-.hero-fallback{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:6%;background:radial-gradient(circle at 72% 30%,rgba(244,171,53,.18),transparent 25%),linear-gradient(115deg,#151b28,#090c13 75%);color:#fff;z-index:0}
-.hero-fallback span{font-size:clamp(3rem,8vw,9rem);font-weight:900;line-height:.85;letter-spacing:-.07em;color:rgba(255,255,255,.12);text-transform:uppercase}
-.hero-fallback small{color:#f4ab35;text-transform:uppercase;letter-spacing:.18em;margin-top:1rem}
-.slide-bg img{position:relative;z-index:1}
-.movie-card{cursor:pointer}
-.movie-card .hover-overlay{visibility:hidden;opacity:0;background:linear-gradient(180deg,rgba(7,9,15,.12),rgba(7,9,15,.88));transition:opacity .22s ease,visibility .22s ease}
-.movie-card:hover .hover-overlay,.movie-card:focus-within .hover-overlay{visibility:visible;opacity:1}
-.movie-card .play-btn,.movie-card .hover-more-btn{position:relative;z-index:2;pointer-events:auto}
-.movie-card .hover-more-btn{color:#fff;background:rgba(12,15,22,.82);border-color:rgba(244,171,53,.65)}
-.movie-card .play-btn{background:linear-gradient(135deg,#f4ab35,#dc7d22);box-shadow:0 0 26px rgba(244,171,53,.35)}
-@media (hover:none){.movie-card .hover-overlay{visibility:visible;opacity:1;background:linear-gradient(180deg,transparent 45%,rgba(7,9,15,.78))}.movie-card .hover-overlay .play-btn{transform:scale(.82)}.movie-card .hover-overlay .hover-more-btn{font-size:.65rem}}
-
-/* ─── REAL CARD LINKS ─── */
-a.movie-card{display:block;color:inherit;text-decoration:none}
-.voice-link{color:var(--yellow);text-decoration:none;cursor:pointer}.voice-link:hover{color:var(--blue);text-decoration:underline}
+/* ─── CATALOG WORKFLOWS ─── */
+.category-content-group{padding:1rem 1.5rem 0}.category-group-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}.category-group-count{font-size:.75rem;color:var(--muted)}
+.admin-workflow-nav{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;padding:.9rem 1rem;margin-bottom:1rem;border:1px solid rgba(53,215,208,.2);border-radius:12px;background:linear-gradient(120deg,rgba(53,215,208,.1),rgba(255,200,87,.06));color:var(--muted);font-size:.78rem}.admin-workflow-nav span{font-weight:700;color:var(--text);margin-right:.35rem}.admin-workflow-nav a{padding:.45rem .75rem;border:1px solid var(--border);border-radius:8px;color:var(--text);text-decoration:none;background:rgba(255,255,255,.04)}.admin-workflow-nav a:hover{border-color:var(--blue);color:var(--blue)}
+.ep-item.active{border:1px solid var(--blue);background:rgba(53,215,208,.12)}.ep-item.active .ep-num,.ep-item.active .ep-link{color:var(--blue);font-weight:700}

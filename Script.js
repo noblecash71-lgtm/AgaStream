@@ -234,19 +234,29 @@ function openInterpPage(name){
   window.scrollTo(0,0);
 }
 
+function isSeriesMovie(movie){return !!(movie&&(movie.type==='series'||(Array.isArray(movie.episodes)&&movie.episodes.length)));}
+function belongsToCategory(movie,catId){var sections=Array.isArray(movie.section)?movie.section:[];return String(movie.genre||'').toLowerCase()===String(catId).toLowerCase()||sections.map(function(item){return String(item).toLowerCase();}).indexOf(String(catId).toLowerCase())>-1;}
+
 // ── CATEGORY SPOTLIGHT ──
 
 function openCatPage(catId){
   var cat=CATEGORIES.filter(function(c){return c.id===catId;})[0]||customSections.filter(function(c){return c.key===catId;})[0]||{id:catId,name:catId};
   hidePagesShowBlank();
   document.getElementById('cp-name').textContent=cat.name.toUpperCase();
-  var films=ALL_MOVIES.filter(function(m){return m.genre===catId;});
+  var films=ALL_MOVIES.filter(function(m){return belongsToCategory(m,catId);});
   document.getElementById('cp-meta').textContent=films.length+' titles • '+cat.name+' movies & series';
   document.getElementById('cp-title-name').textContent=cat.name.toUpperCase()+' TITLES';
-  var grid=document.getElementById('cp-grid');
-  grid.innerHTML='';
-  if(!films.length){grid.innerHTML='<p style="color:var(--muted);padding:2rem">No titles yet in this category.</p>';return;}
-  films.forEach(function(m){grid.appendChild(makeCard(m));});
+  var movies=films.filter(function(m){return !isSeriesMovie(m);});
+  var series=films.filter(isSeriesMovie);
+  var movieGrid=document.getElementById('cp-movies-grid'),seriesGrid=document.getElementById('cp-series-grid');
+  movieGrid.innerHTML='';seriesGrid.innerHTML='';
+  document.getElementById('cp-movies-count').textContent=movies.length+' title'+(movies.length===1?'':'s');
+  document.getElementById('cp-series-count').textContent=series.length+' title'+(series.length===1?'':'s');
+  document.getElementById('cp-movies-group').style.display=movies.length?'block':'none';
+  document.getElementById('cp-series-group').style.display=series.length?'block':'none';
+  if(!films.length){document.getElementById('cp-movies-group').style.display='block';movieGrid.innerHTML='<p style="color:var(--muted);padding:2rem">No movies or series yet in this category.</p>';}
+  movies.forEach(function(m){movieGrid.appendChild(makeCard(m));});
+  series.forEach(function(m){seriesGrid.appendChild(makeCard(m));});
   document.getElementById('cat-page').style.display='block';
   window.scrollTo(0,0);
 }
@@ -262,7 +272,7 @@ function buildHero(){
   var hero=document.getElementById('hero');
   var dots=document.getElementById('slideDots');
   if(!SLIDES.length){
-    hero.innerHTML='<div class="empty-hero"><span class="empty-hero-kicker">AGASTREAM CATALOG</span><h2>Your next story starts here.</h2><p>Movies and series added by the administrator will appear on this homepage.</p></div>';
+    hero.innerHTML='<div class="empty-hero"><span class="empty-hero-kicker">AGASTREAM CATALOG</span><h2>Your next story starts here.</h2><p>Movies and series added by the administrator will appear on this homepage.</p><button class="btn-watch" onclick="openAdminPanel()"><i class="fa fa-lock"></i> Open Admin Studio</button></div>';
     return;
   }
   SLIDES.forEach(function(s,i){
@@ -319,11 +329,9 @@ function startProgressBar(){
 //  CARD BUILDER
 // ════════════════════════════════
 function makeCard(movie){
-  var div=document.createElement('a');
+  var div=document.createElement('div');
   div.className='movie-card';
-  div.href=contentPath(movie);
-  div.setAttribute('aria-label','Open '+movie.title);
-  var isSeries=!!(movie.episodes);
+  var isSeries=isSeriesMovie(movie);
   div.innerHTML=
     (movie.isNew?'<div class="card-new-badge">NEW</div>':'')
     +'<div class="card-type-badge">'+(isSeries?'Series':'Movie')+'</div>'
@@ -334,18 +342,16 @@ function makeCard(movie){
     +'</div></div>'
     +'<div class="movie-info"><h4>'+movie.title+'</h4>'
     +'<div class="movie-meta">'+movie.meta+'</div>'
-    +'<div class="voice">🎙 <span class="voice-link" role="link" tabindex="0">'+movie.voice+'</span></div>'
+    +'<div class="voice">🎙 <a onclick="openInterpPage(\''+movie.voice+'\');event.stopPropagation()">'+movie.voice+'</a></div>'
     +'</div>';
   div.querySelector('.play-btn').addEventListener('click',function(e){
-    e.preventDefault();e.stopPropagation();
+    e.stopPropagation();
     if(isSeries&&movie.episodes&&movie.episodes[0]!=='#'){window.open(movie.episodes[0],'_blank');}
     else if(!isSeries&&movie.link&&movie.link!=='#'){window.open(movie.link,'_blank');}
     else{openModal(movie);}
   });
-  div.querySelector('.voice-link').addEventListener('click',function(e){e.preventDefault();e.stopPropagation();routeTo('/interpreter/'+encodeURIComponent(movie.voice));});
-  div.querySelector('.voice-link').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();e.stopPropagation();routeTo('/interpreter/'+encodeURIComponent(movie.voice));}});
-  div.querySelector('.hover-more-btn').addEventListener('click',function(e){e.preventDefault();e.stopPropagation();routeTo(contentPath(movie));});
-  div.addEventListener('click',function(e){if(e.target.closest('button')||e.target.closest('.voice-link'))return;e.preventDefault();routeTo(contentPath(movie));});
+  div.querySelector('.hover-more-btn').addEventListener('click',function(e){e.stopPropagation();routeTo(contentPath(movie));});
+  div.addEventListener('click',function(){routeTo(contentPath(movie));});
   return div;
 }
 
@@ -450,13 +456,14 @@ var _currentMovie=null;
 
 function openModal(movie){
   _currentMovie=movie;
-  var isSeries=!!(movie.episodes);
+  var isSeries=isSeriesMovie(movie);
   var poster=movie.poster||movie.img||'';
   var title=movie.title||'';
   var year=(movie.year||(movie.meta||'').split('•')[0]||'').toString().trim();
   var genre=movie.genre||'';
   var interp=movie.voice||movie.interpreter||'';
-  var link=isSeries?(movie.episodes&&movie.episodes[0]!=='#'?movie.episodes[0]:'#'):(movie.link||'#');
+  var selectedEpisode=typeof movie._selectedEpisode==='number'?movie._selectedEpisode:0;
+  var link=isSeries?(movie.episodes&&movie.episodes[selectedEpisode]&&movie.episodes[selectedEpisode]!=='#'?movie.episodes[selectedEpisode]:'#'):(movie.link||'#');
 
   // player area
   document.getElementById('playerBgPoster').src=poster;
@@ -511,9 +518,9 @@ function openModal(movie){
   if(isSeries&&movie.episodes&&movie.episodes.length){
     var items=movie.episodes.map(function(ep,i){
       var hasLink=ep&&ep!=='#';
-      return '<div class="ep-item">'
+      return '<div class="ep-item '+(i===selectedEpisode?'active':'')+'">'
         +'<div class="ep-num">'+(i+1)+'</div>'
-        +'<div class="ep-link" '+(hasLink?'onclick="routeTo(\''+contentPath(movie)+'/season-1/episode-'+(i+1)+'\')"':'')+'>Episode '+(i+1)+'</div>'
+        +'<div class="ep-link" '+(hasLink?'onclick="playSeriesEpisode(_currentMovie,'+(i)+')"':'')+'>Episode '+(i+1)+'</div>'
         +'<div class="ep-ext">'+(hasLink?'&#8599;':'&mdash;')+'</div>'
         +'</div>';
     }).join('');
@@ -823,10 +830,11 @@ function saveAdminMovie(event){
     download:document.getElementById('admin-download').value.trim(),
     trailer:document.getElementById('admin-trailer').value.trim(),
     video:document.getElementById('admin-video').value.trim(),
+    type:type,
     isNew:document.getElementById('admin-is-new').checked
   };
   var episodes=document.getElementById('admin-episodes').value.split(/\n+/).map(function(item){return item.trim();}).filter(Boolean);
-  if(type==='series'&&episodes.length)movie.episodes=episodes;
+  if(type==='series')movie.episodes=episodes;
   var existing=customAdminMovies();
   var index=existing.findIndex(function(item){return item.adminId===movie.adminId;});
   if(editingOriginal){
@@ -852,7 +860,7 @@ function editAdminMovie(id){
   document.getElementById('admin-title').value=movie.title||'';
   document.getElementById('admin-year').value=(movie.meta||'').split('•')[0].trim();
   document.getElementById('admin-genre').value=movie.genre||'action';
-  document.getElementById('admin-type').value=movie.episodes?'series':'movie';
+  document.getElementById('admin-type').value=isSeriesMovie(movie)?'series':'movie';
   document.getElementById('admin-voice').value=movie.voice||'';
   document.getElementById('admin-sections').value=(movie.section||[]).join(', ');
   document.getElementById('admin-description').value=movie.desc||'';
@@ -878,7 +886,7 @@ function deleteAdminMovie(id){
 function updateAdminMetrics(){
   var total=document.getElementById('admin-total-count');if(!total)return;
   total.textContent=ALL_MOVIES.length;
-  document.getElementById('admin-series-count').textContent=ALL_MOVIES.filter(function(movie){return !!movie.episodes;}).length;
+  document.getElementById('admin-series-count').textContent=ALL_MOVIES.filter(isSeriesMovie).length;
   document.getElementById('admin-custom-count').textContent=customAdminMovies().length;
 }
 function renderAdminLibrary(filter){
@@ -981,6 +989,16 @@ function restoreDeletedMovies(){
 //  REAL BROWSER ROUTES
 // ════════════════════════════════
 var routeRendering=false;
+function slugify(value){return String(value||'').toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');}
+function contentPath(movie){return isSeriesMovie(movie)?'/series/'+slugify(movie.title):'/movie/'+slugify(movie.title);}
+function findMovieBySlug(slug,type){return ALL_MOVIES.find(function(movie){return slugify(movie.title)===slug&&(type==='series'?isSeriesMovie(movie):!isSeriesMovie(movie));});}
+function openContentRoute(path,type){
+  var parts=path.split('/').filter(Boolean),movie=findMovieBySlug(decodeURIComponent(parts[1]||''),type);
+  if(!movie){baseShowMainPage();routeTitle('Not Found');showToast('This title is not available in the catalog');return;}
+  if(type==='series'&&parts[3]&&parts[3].indexOf('episode-')===0)movie._selectedEpisode=Math.max(0,parseInt(parts[3].replace('episode-',''),10)-1);
+  baseShowMainPage();routeTitle(movie.title);window.setTimeout(function(){openModal(movie);},0);
+}
+function playSeriesEpisode(movie,index){if(!movie||!isSeriesMovie(movie))return;movie._selectedEpisode=index;routeTo(contentPath(movie)+'/season-1/episode-'+(index+1));}
 var baseShowMainPage=showMainPage;
 var baseOpenAdminPanel=openAdminPanel;
 var baseOpenAllCategoriesPage=openAllCategoriesPage;
@@ -992,13 +1010,17 @@ function routeTo(path,target){history.pushState({},'',path);applyRoute(path,targ
 function openCatalogPage(kind){
   hidePagesShowBlank();
   var isSeries=kind==='series';
-  var films=ALL_MOVIES.filter(function(movie){return isSeries?!!movie.episodes:!movie.episodes;});
+  var films=ALL_MOVIES.filter(function(movie){return isSeries?isSeriesMovie(movie):!isSeriesMovie(movie);});
   document.getElementById('cp-name').textContent=isSeries?'TV SERIES':'MOVIES';
   document.getElementById('cp-meta').textContent=films.length+' titles available in the catalog';
   document.getElementById('cp-title-name').textContent=isSeries?'TV SERIES':'MOVIES';
-  var grid=document.getElementById('cp-grid');grid.innerHTML='';
-  if(!films.length)grid.innerHTML='<p style="color:var(--muted);padding:2rem">No titles have been added yet. Open Admin Studio to publish the first one.</p>';
-  films.forEach(function(movie){grid.appendChild(makeCard(movie));});
+  var movieGroup=document.getElementById('cp-movies-group'),seriesGroup=document.getElementById('cp-series-group');
+  var movieGrid=document.getElementById('cp-movies-grid'),seriesGrid=document.getElementById('cp-series-grid');
+  movieGrid.innerHTML='';seriesGrid.innerHTML='';
+  movieGroup.style.display=isSeries?'none':'block';seriesGroup.style.display=isSeries?'block':'none';
+  document.getElementById(isSeries?'cp-series-count':'cp-movies-count').textContent=films.length+' title'+(films.length===1?'':'s');
+  if(!films.length)(isSeries?seriesGrid:movieGrid).innerHTML='<p style="color:var(--muted);padding:2rem">No titles have been added yet. Open Admin Studio to publish the first one.</p>';
+  films.forEach(function(movie){(isSeries?seriesGrid:movieGrid).appendChild(makeCard(movie));});
   document.getElementById('cat-page').style.display='block';window.scrollTo(0,0);
 }
 function applyRoute(path,target){
@@ -1088,21 +1110,27 @@ function populateAdminSlides(){
 }
 
 
+
 // ════════════════════════════════
-//  CONTENT URL HELPERS
+//  SHARED HOSTED CATALOG
 // ════════════════════════════════
-function slugify(value){return String(value||'').toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');}
-function contentPath(movie){return (movie&&movie.episodes)?'/series/'+slugify(movie.title):'/movie/'+slugify(movie.title);}
-function findMovieBySlug(slug,type){
-  return ALL_MOVIES.find(function(movie){return slugify(movie.title)===slug&&(type!=='series'||!!movie.episodes)&&(type!=='movie'||!movie.episodes);});
-}
-function openContentRoute(path,type){
-  var parts=path.split('/').filter(Boolean);
-  var slug=parts[1]||'';
-  var movie=findMovieBySlug(decodeURIComponent(slug),type);
-  if(!movie){baseShowMainPage();routeTitle('Not Found');showToast('This title is not available in the catalog');return;}
-  baseShowMainPage();
-  var episodeNumber=parts[3]&&parts[3].indexOf('episode-')===0?parts[3].replace('episode-',''):'';
-  routeTitle(episodeNumber?movie.title+' - Season 1 Episode '+episodeNumber:movie.title);
-  window.setTimeout(function(){openModal(movie);},0);
-}
+var sharedCatalogOnline=false;
+var legacyAdminLogin=adminLogin,legacySaveAdminMovie=saveAdminMovie,legacyDeleteAdminMovie=deleteAdminMovie,legacySaveAdminSlide=saveAdminSlide,legacyDeleteAdminSlide=deleteAdminSlide,legacyMoveAdminSlide=moveAdminSlide,legacySaveSiteSettings=saveSiteSettings,legacyDeleteCustomSection=deleteCustomSection,legacyResetSiteSettings=resetSiteSettings;
+function sharedToken(){return sessionStorage.getItem('agastream-admin-token')||'';}
+async function sharedRequest(url,options){options=options||{};options.headers=Object.assign({'Content-Type':'application/json'},options.headers||{});var t=sharedToken();if(t)options.headers.Authorization='Bearer '+t;var r=await fetch(url,options),d={};try{d=await r.json();}catch(_){}if(!r.ok)throw Error(d.error||('Request failed: '+r.status));return d;}
+function refreshSharedUI(){applySiteSettings();buildHero();['new','trending','series','action','drama','horror','romantic','documentary','cartoon'].forEach(function(s){fillRow('row-'+s,s);});renderCustomSections();buildCategories();buildInterpreters();if(typeof applyRoute==='function')applyRoute(location.pathname||'/');}
+async function loadSharedCatalog(){try{var d=await sharedRequest('/api/catalog',{cache:'no-store'});sharedCatalogOnline=true;ALL_MOVIES.length=0;(d.movies||[]).forEach(function(m){ALL_MOVIES.push(m);});adminSlides=d.slides||[];SLIDES.length=0;adminSlides.forEach(function(s){SLIDES.push(s);});siteSettings=Object.assign({},DEFAULT_SITE_SETTINGS,d.settings||{});customSections=Array.isArray(d.customSections)?d.customSections:[];refreshSharedUI();}catch(e){console.warn('Shared catalog unavailable; local preview data retained.',e.message);}}
+function apiMovie(){var id=document.getElementById('admin-edit-id').value.trim(),type=document.getElementById('admin-type').value,genre=document.getElementById('admin-genre').value,sections=(document.getElementById('admin-sections').value||'').split(',').map(function(x){return x.trim().toLowerCase();}).filter(Boolean);if(!sections.length)sections=[genre];if(type==='series'&&sections.indexOf('series')<0)sections.push('series');return{adminId:id||'movie-'+Date.now(),title:document.getElementById('admin-title').value.trim(),poster:document.getElementById('admin-poster').value.trim()||pendingAdminPoster,meta:(document.getElementById('admin-year').value.trim()||'2026')+' • '+genre.charAt(0).toUpperCase()+genre.slice(1)+' • '+(type==='series'?'Series':'Movie'),voice:document.getElementById('admin-voice').value.trim()||'AgaStream',genre:genre,section:sections,desc:document.getElementById('admin-description').value.trim()||'A new AgaStream title.',link:document.getElementById('admin-watch').value.trim(),download:document.getElementById('admin-download').value.trim(),trailer:document.getElementById('admin-trailer').value.trim(),video:document.getElementById('admin-video').value.trim(),type:type,isNew:document.getElementById('admin-is-new').checked,episodes:type==='series'?document.getElementById('admin-episodes').value.split(/\n+/).map(function(x){return x.trim();}).filter(Boolean):[]};}
+adminLogin=async function(e){e.preventDefault();var err=document.getElementById('admin-login-error');try{var d=await sharedRequest('/api/admin/login',{method:'POST',body:JSON.stringify({username:document.getElementById('admin-username').value.trim(),password:document.getElementById('admin-password').value})});sessionStorage.setItem('agastream-admin-token',d.token);sessionStorage.setItem('agastream-admin','true');err.textContent='';document.getElementById('admin-login').style.display='none';document.getElementById('admin-dashboard').style.display='block';renderAdminLibrary();updateAdminMetrics();populateSiteSettingsForm();populateAdminSlides();showToast('Welcome back, Admin');}catch(x){err.textContent=x.message==='Failed to fetch'?'Shared server unavailable.':'Incorrect username or password.';}};
+openAdminPanel=function(){baseOpenAdminPanel();var ok=!!sharedToken()||sessionStorage.getItem('agastream-admin')==='true';document.getElementById('admin-login').style.display=ok?'none':'block';document.getElementById('admin-dashboard').style.display=ok?'block':'none';if(ok){renderAdminLibrary();updateAdminMetrics();populateSiteSettingsForm();populateAdminSlides();}};
+adminLogout=function(){sessionStorage.removeItem('agastream-admin-token');sessionStorage.removeItem('agastream-admin');document.getElementById('admin-dashboard').style.display='none';document.getElementById('admin-login').style.display='block';document.getElementById('admin-password').value='';};
+saveAdminMovie=async function(e){if(!sharedCatalogOnline)return legacySaveAdminMovie(e);e.preventDefault();try{await sharedRequest('/api/admin/catalog',{method:'POST',body:JSON.stringify(apiMovie())});await loadSharedCatalog();renderAdminLibrary();updateAdminMetrics();resetAdminForm();document.getElementById('admin-save-message').textContent='Saved to the shared catalog. All visitors can now see it.';showToast('Catalog saved for all visitors');}catch(x){document.getElementById('admin-save-message').textContent=x.message;}};
+deleteAdminMovie=async function(id){if(!confirm('Delete this title for every visitor?'))return;if(!sharedCatalogOnline)return legacyDeleteAdminMovie(id);try{await sharedRequest('/api/admin/catalog/'+encodeURIComponent(id),{method:'DELETE'});await loadSharedCatalog();renderAdminLibrary();showToast('Title deleted for every visitor');}catch(x){showToast(x.message);}};
+saveAdminSlide=async function(e){if(!sharedCatalogOnline)return legacySaveAdminSlide(e);e.preventDefault();var id=document.getElementById('admin-slide-edit-id').value||'slide-'+Date.now(),slide={id:id,title:document.getElementById('admin-slide-title').value.trim(),year:document.getElementById('admin-slide-year').value.trim()||'2026',genre:document.getElementById('admin-slide-genre').value.trim()||'Drama',interpreter:document.getElementById('admin-slide-interpreter').value.trim()||'AgaStream',img:document.getElementById('admin-slide-image').value.trim(),link:document.getElementById('admin-slide-link').value.trim(),desc:document.getElementById('admin-slide-description').value.trim()||'Discover this new AgaStream title.',type:document.getElementById('admin-slide-type').value,rating:document.getElementById('admin-slide-rating').value.trim()||'8.6',position:adminSlides.findIndex(function(s){return s.id===id;})};try{await sharedRequest('/api/admin/slides',{method:'POST',body:JSON.stringify(slide)});await loadSharedCatalog();populateAdminSlides();resetAdminSlideForm();document.getElementById('slide-save-message').textContent='Slide saved for every visitor.';showToast('Homepage slide published');}catch(x){document.getElementById('slide-save-message').textContent=x.message;}};
+deleteAdminSlide=async function(id){if(!confirm('Delete this homepage slide for every visitor?'))return;if(!sharedCatalogOnline)return legacyDeleteAdminSlide(id);try{await sharedRequest('/api/admin/slides/'+encodeURIComponent(id),{method:'DELETE'});await loadSharedCatalog();populateAdminSlides();showToast('Homepage slide deleted');}catch(x){showToast(x.message);}};
+moveAdminSlide=async function(id,dir){if(!sharedCatalogOnline)return legacyMoveAdminSlide(id,dir);var i=adminSlides.findIndex(function(s){return s.id===id;}),n=i+dir;if(i<0||n<0||n>=adminSlides.length)return;var ids=adminSlides.map(function(s){return s.id;}),tmp=ids[i];ids[i]=ids[n];ids[n]=tmp;try{await sharedRequest('/api/admin/slides/reorder',{method:'POST',body:JSON.stringify({ids:ids})});await loadSharedCatalog();populateAdminSlides();}catch(x){showToast(x.message);}};
+function apiSettings(){var map={siteName:'setting-site-name',logoMark:'setting-logo-mark',pageTitle:'setting-page-title',footerYear:'setting-footer-year',footerAbout:'setting-footer-about',phone:'setting-phone',email:'setting-email',youtube:'setting-youtube',instagram:'setting-instagram',facebook:'setting-facebook',copyright:'setting-copyright'},n=Object.assign({},siteSettings);Object.keys(map).forEach(function(k){var e=document.getElementById(map[k]);if(e)n[k]=e.value.trim();});if(pendingAdminLogo)n.logoUrl=pendingAdminLogo;else{var l=document.getElementById('setting-logo-url');if(l&&l.value.trim())n.logoUrl=l.value.trim();}return n;}
+saveSiteSettings=async function(e){if(!sharedCatalogOnline)return legacySaveSiteSettings(e);e.preventDefault();var k=document.getElementById('setting-section-key').value.trim().toLowerCase(),n=document.getElementById('setting-section-name').value.trim(),sections=customSections.slice();if(k&&n&&!RESERVED_SECTIONS.includes(k)){var old=sections.find(function(s){return s.key===k;});if(old)old.name=n;else sections.push({key:k,name:n});}try{await sharedRequest('/api/admin/settings',{method:'PUT',body:JSON.stringify({siteSettings:apiSettings(),customSections:sections})});await loadSharedCatalog();populateSiteSettingsForm();document.getElementById('settings-save-message').textContent='Settings saved for every visitor.';showToast('Site settings published');}catch(x){document.getElementById('settings-save-message').textContent=x.message;}};
+deleteCustomSection=async function(k){if(!sharedCatalogOnline)return legacyDeleteCustomSection(k);try{await sharedRequest('/api/admin/settings',{method:'PUT',body:JSON.stringify({siteSettings:siteSettings,customSections:customSections.filter(function(s){return s.key!==k;})})});await loadSharedCatalog();populateSiteSettingsForm();}catch(x){showToast(x.message);}};
+resetSiteSettings=async function(){if(!confirm('Reset branding and footer settings for every visitor?'))return;if(!sharedCatalogOnline)return legacyResetSiteSettings();try{await sharedRequest('/api/admin/settings',{method:'PUT',body:JSON.stringify({siteSettings:DEFAULT_SITE_SETTINGS,customSections:customSections})});await loadSharedCatalog();populateSiteSettingsForm();}catch(x){showToast(x.message);}};
+loadSharedCatalog();
